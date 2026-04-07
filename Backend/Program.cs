@@ -43,6 +43,7 @@ async Task<IResult> SendIrcc(string code)
     var request = new HttpRequestMessage(HttpMethod.Post, $"http://{tvIp}/sony/IRCC");
     request.Content = new StringContent(body, Encoding.UTF8, "text/xml");
     request.Headers.Add("Cookie", $"auth={authState.Cookie}");
+    request.Headers.Add("SOAPAction", "\"urn:schemas-sony-com:service:IRCC:1#X_SendIRCC\"");
 
     try
     {
