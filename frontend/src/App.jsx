@@ -6,6 +6,9 @@ function App() {
   const [tvLoading, setTvLoading] = useState(false)
   const [notification, setNotification] = useState(null)
   const [permission, setPermission] = useState('default')
+  const [showPinInput, setShowPinInput] = useState(false)
+  const [pin, setPin] = useState('')
+  const [registering, setRegistering] = useState(false)
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -55,7 +58,10 @@ function App() {
       const res = await fetch('/api/tv/power', { method: 'POST' })
       const data = await res.json()
       if (data.success) {
-        setNotification('Comando inviato al TV!')
+        setNotification(data.turnedOn ? 'TV accesa!' : 'TV spenta!')
+      } else if (res.status === 401) {
+        setShowPinInput(true)
+        setNotification('Autenticazione scaduta. Registrati di nuovo.')
       } else {
         setNotification('Errore: ' + data.error)
       }
@@ -63,6 +69,38 @@ function App() {
       setNotification('Impossibile raggiungere il server')
     } finally {
       setTvLoading(false)
+    }
+  }
+
+  const handleRequestPin = async () => {
+    setRegistering(true)
+    try {
+      await fetch('/api/tv/pin', { method: 'POST' })
+      setNotification('PIN mostrato sul TV! Inseriscilo qui sotto.')
+    } catch {
+      setNotification('Impossibile raggiungere il TV')
+    } finally {
+      setRegistering(false)
+    }
+  }
+
+  const handleRegisterPin = async () => {
+    if (!pin) return
+    setRegistering(true)
+    try {
+      const res = await fetch(`/api/tv/register?pin=${pin}`, { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        setShowPinInput(false)
+        setPin('')
+        setNotification('TV registrato! Ora puoi usare il pulsante.')
+      } else {
+        setNotification('PIN non valido. Riprova.')
+      }
+    } catch {
+      setNotification('Errore di connessione')
+    } finally {
+      setRegistering(false)
     }
   }
 
@@ -115,6 +153,26 @@ function App() {
             </span>
           )}
         </button>
+
+        {showPinInput && (
+          <div className="pin-section">
+            <p className="pin-text">Il PIN e' mostrato sul TV</p>
+            <div className="pin-row">
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="Inserisci PIN"
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                className="pin-input"
+              />
+              <button className="pin-btn" onClick={handleRegisterPin} disabled={registering || !pin}>
+                OK
+              </button>
+            </div>
+          </div>
+        )}
 
         {notification && (
           <div className="notification">
