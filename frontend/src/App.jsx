@@ -2,6 +2,16 @@ import { useState, useEffect } from 'react'
 import './App.css'
 
 const COMMANDS = {
+  num1: 'AAAAAQAAAAEAAAAAAw==',
+  num2: 'AAAAAQAAAAEAAAABAw==',
+  num3: 'AAAAAQAAAAEAAAACAw==',
+  num4: 'AAAAAQAAAAEAAAADAw==',
+  num5: 'AAAAAQAAAAEAAAAEAw==',
+  num6: 'AAAAAQAAAAEAAAAFAw==',
+  num7: 'AAAAAQAAAAEAAAAGAw==',
+  num8: 'AAAAAQAAAAEAAAAHAw==',
+  num9: 'AAAAAQAAAAEAAAAIAw==',
+  num0: 'AAAAAQAAAAEAAAAJAw==',
   up: 'AAAAAQAAAAEAAAB0Aw==',
   down: 'AAAAAQAAAAEAAAB1Aw==',
   left: 'AAAAAQAAAAEAAAA0Aw==',
@@ -46,7 +56,7 @@ function App() {
         setAuthExpired(true)
         setShowPinInput(true)
       }
-    } catch { /* ignore */ }
+    } catch {}
     setLoading(null)
   }
 
@@ -59,7 +69,7 @@ function App() {
         setAuthExpired(true)
         setShowPinInput(true)
       }
-    } catch { /* ignore */ }
+    } catch {}
     setLoading(null)
   }
 
@@ -84,16 +94,6 @@ function App() {
     setRegistering(false)
   }
 
-  const DpadButton = ({ cmd, label, large }) => (
-    <button
-      className={`dpad-btn ${large ? 'dpad-btn-large' : ''}`}
-      onClick={() => sendCommand(cmd)}
-      disabled={loading !== null}
-    >
-      {loading === cmd ? <span className="spinner-sm"></span> : label}
-    </button>
-  )
-
   return (
     <div className="app">
       <div className="remote">
@@ -103,7 +103,7 @@ function App() {
           onClick={togglePower}
           disabled={loading !== null}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
             <line x1="12" y1="2" x2="12" y2="12"/>
           </svg>
@@ -112,13 +112,7 @@ function App() {
         {/* Top row */}
         <div className="top-row">
           <button className="func-btn" onClick={() => sendCommand('input')} disabled={loading !== null}>Input</button>
-          <button className="func-btn" onClick={() => sendCommand('mute')} disabled={loading !== null}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-              <line x1="23" y1="9" x2="17" y2="15"/>
-              <line x1="17" y1="9" x2="23" y2="15"/>
-            </svg>
-          </button>
+          <button className="func-btn" onClick={() => sendCommand('mute')} disabled={loading !== null}>Muto</button>
           <button className="func-btn" onClick={() => sendCommand('info')} disabled={loading !== null}>Info</button>
         </div>
 
@@ -126,17 +120,17 @@ function App() {
         <div className="dpad">
           <div className="dpad-row">
             <div></div>
-            <DpadButton cmd="up" label="▲" />
+            <button className="dpad-btn" onClick={() => sendCommand('up')} disabled={loading !== null}>▲</button>
             <div></div>
           </div>
           <div className="dpad-row">
-            <DpadButton cmd="left" label="◀" />
-            <DpadButton cmd="ok" label="OK" large />
-            <DpadButton cmd="right" label="▶" />
+            <button className="dpad-btn" onClick={() => sendCommand('left')} disabled={loading !== null}>◀</button>
+            <button className="dpad-btn dpad-ok" onClick={() => sendCommand('ok')} disabled={loading !== null}>OK</button>
+            <button className="dpad-btn" onClick={() => sendCommand('right')} disabled={loading !== null}>▶</button>
           </div>
           <div className="dpad-row">
             <div></div>
-            <DpadButton cmd="down" label="▼" />
+            <button className="dpad-btn" onClick={() => sendCommand('down')} disabled={loading !== null}>▼</button>
             <div></div>
           </div>
         </div>
@@ -144,16 +138,10 @@ function App() {
         {/* Nav row */}
         <div className="nav-row">
           <button className="nav-btn" onClick={() => sendCommand('back')} disabled={loading !== null}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M19 12H5M12 19l-7-7 7-7"/>
-            </svg>
-            <span>Indietro</span>
+            ← Indietro
           </button>
           <button className="nav-btn" onClick={() => sendCommand('home')} disabled={loading !== null}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-            </svg>
-            <span>Home</span>
+            Home
           </button>
         </div>
 
@@ -177,11 +165,27 @@ function App() {
           <button className="play-btn" onClick={() => sendCommand('pause')} disabled={loading !== null}>⏸</button>
         </div>
 
+        {/* Number pad */}
+        <div className="numpad">
+          <button className="num-btn" onClick={() => sendCommand('num1')} disabled={loading !== null}>1</button>
+          <button className="num-btn" onClick={() => sendCommand('num2')} disabled={loading !== null}>2</button>
+          <button className="num-btn" onClick={() => sendCommand('num3')} disabled={loading !== null}>3</button>
+          <button className="num-btn" onClick={() => sendCommand('num4')} disabled={loading !== null}>4</button>
+          <button className="num-btn" onClick={() => sendCommand('num5')} disabled={loading !== null}>5</button>
+          <button className="num-btn" onClick={() => sendCommand('num6')} disabled={loading !== null}>6</button>
+          <button className="num-btn" onClick={() => sendCommand('num7')} disabled={loading !== null}>7</button>
+          <button className="num-btn" onClick={() => sendCommand('num8')} disabled={loading !== null}>8</button>
+          <button className="num-btn" onClick={() => sendCommand('num9')} disabled={loading !== null}>9</button>
+          <div></div>
+          <button className="num-btn" onClick={() => sendCommand('num0')} disabled={loading !== null}>0</button>
+          <div></div>
+        </div>
+
         {/* PIN section */}
         {showPinInput && (
           <div className="pin-section">
             <p className="pin-text">
-              {authExpired ? 'Autenticazione scaduta.' : ''} Inserisci il PIN mostrato sul TV
+              {authExpired ? 'Autenticazione scaduta. ' : ''}Inserisci il PIN mostrato sul TV
             </p>
             <div className="pin-row">
               {authExpired && (
