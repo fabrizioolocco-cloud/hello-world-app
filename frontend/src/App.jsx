@@ -1,87 +1,73 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
+const COMMANDS = {
+  up: 'AAAAAQAAAAEAAAB0Aw==',
+  down: 'AAAAAQAAAAEAAAB1Aw==',
+  left: 'AAAAAQAAAAEAAAA0Aw==',
+  right: 'AAAAAQAAAAEAAAA1Aw==',
+  ok: 'AAAAAQAAAAEAAABlAw==',
+  back: 'AAAAAQAAAAEAAABQAw==',
+  home: 'AAAAAQAAAAEAAABgAw==',
+  volUp: 'AAAAAQAAAAEAAAA+Aw==',
+  volDown: 'AAAAAQAAAAEAAAA/Aw==',
+  mute: 'AAAAAQAAAAEAAAAUAw==',
+  chUp: 'AAAAAQAAAAEAAAAZAw==',
+  chDown: 'AAAAAQAAAAEAAAAbAw==',
+  play: 'AAAAAgAAAJcAAAAwAw==',
+  pause: 'AAAAAgAAAJcAAAAZAw==',
+  input: 'AAAAAQAAAAEAAAAlAw==',
+  epg: 'AAAAAQAAAAEAAAB7Aw==',
+  info: 'AAAAAQAAAAEAAAAfAw==',
+}
+
 function App() {
-  const [loading, setLoading] = useState(false)
-  const [tvLoading, setTvLoading] = useState(false)
-  const [notification, setNotification] = useState(null)
-  const [permission, setPermission] = useState('default')
+  const [loading, setLoading] = useState(null)
   const [showPinInput, setShowPinInput] = useState(false)
   const [pin, setPin] = useState('')
   const [registering, setRegistering] = useState(false)
+  const [authExpired, setAuthExpired] = useState(false)
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(console.error)
     }
-    if ('Notification' in window) {
-      setPermission(Notification.permission)
-    }
   }, [])
 
-  const handleButtonClick = async () => {
+  const sendCommand = async (cmd) => {
     if (loading) return
-
-    if ('Notification' in window && Notification.permission !== 'granted') {
-      const result = await Notification.requestPermission()
-      setPermission(result)
-      if (result !== 'granted') {
-        setNotification('Concedi le notifiche per ricevere il messaggio!')
-        return
-      }
-    }
-
-    setLoading(true)
-    setNotification(null)
-
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'SCHEDULE_NOTIFICATION',
-        title: 'Hello World!',
-        body: 'Ecco il tuo messaggio!',
-        delay: 5000,
+    setLoading(cmd)
+    try {
+      const res = await fetch('/api/tv/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: COMMANDS[cmd] }),
       })
-    }
-
-    setTimeout(() => {
-      setNotification('Hello World!')
-      setLoading(false)
-    }, 5000)
+      if (res.status === 401) {
+        setAuthExpired(true)
+        setShowPinInput(true)
+      }
+    } catch { /* ignore */ }
+    setLoading(null)
   }
 
-  const handleTvPower = async () => {
-    if (tvLoading) return
-    setTvLoading(true)
-    setNotification(null)
-
+  const togglePower = async () => {
+    if (loading) return
+    setLoading('power')
     try {
       const res = await fetch('/api/tv/power', { method: 'POST' })
-      const data = await res.json()
-      if (data.success) {
-        setNotification(data.turnedOn ? 'TV accesa!' : 'TV spenta!')
-      } else if (res.status === 401) {
+      if (res.status === 401) {
+        setAuthExpired(true)
         setShowPinInput(true)
-        setNotification('Autenticazione scaduta. Registrati di nuovo.')
-      } else {
-        setNotification('Errore: ' + data.error)
       }
-    } catch {
-      setNotification('Impossibile raggiungere il server')
-    } finally {
-      setTvLoading(false)
-    }
+    } catch { /* ignore */ }
+    setLoading(null)
   }
 
   const handleRequestPin = async () => {
     setRegistering(true)
-    try {
-      await fetch('/api/tv/pin', { method: 'POST' })
-      setNotification('PIN mostrato sul TV! Inseriscilo qui sotto.')
-    } catch {
-      setNotification('Impossibile raggiungere il TV')
-    } finally {
-      setRegistering(false)
-    }
+    try { await fetch('/api/tv/pin', { method: 'POST' }) } catch {}
+    setRegistering(false)
   }
 
   const handleRegisterPin = async () => {
@@ -92,77 +78,123 @@ function App() {
       const data = await res.json()
       if (data.success) {
         setShowPinInput(false)
+        setAuthExpired(false)
         setPin('')
-        setNotification('TV registrato! Ora puoi usare il pulsante.')
-      } else {
-        setNotification('PIN non valido. Riprova.')
       }
-    } catch {
-      setNotification('Errore di connessione')
-    } finally {
-      setRegistering(false)
-    }
+    } catch {}
+    setRegistering(false)
   }
+
+  const DpadButton = ({ cmd, label, large }) => (
+    <button
+      className={`dpad-btn ${large ? 'dpad-btn-large' : ''}`}
+      onClick={() => sendCommand(cmd)}
+      disabled={loading !== null}
+    >
+      {loading === cmd ? <span className="spinner-sm"></span> : label}
+    </button>
+  )
 
   return (
     <div className="app">
-      <div className="container">
-        <h1>Hello World App</h1>
-        <p className="subtitle">Premi il pulsante per ricevere un messaggio</p>
-
-        {permission === 'denied' && (
-          <p className="warning">
-            Le notifiche sono bloccate. Abilitale dalle impostazioni del browser.
-          </p>
-        )}
-
+      <div className="remote">
+        {/* Power */}
         <button
-          className={`btn ${loading ? 'loading' : ''}`}
-          onClick={handleButtonClick}
-          disabled={loading}
+          className={`power-btn ${loading === 'power' ? 'active' : ''}`}
+          onClick={togglePower}
+          disabled={loading !== null}
         >
-          {loading ? (
-            <span className="btn-content">
-              <span className="spinner"></span>
-              Attendi 5 secondi...
-            </span>
-          ) : (
-            'Salutami!'
-          )}
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+            <line x1="12" y1="2" x2="12" y2="12"/>
+          </svg>
         </button>
 
-        <div className="divider"></div>
+        {/* Top row */}
+        <div className="top-row">
+          <button className="func-btn" onClick={() => sendCommand('input')} disabled={loading !== null}>Input</button>
+          <button className="func-btn" onClick={() => sendCommand('mute')} disabled={loading !== null}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <line x1="23" y1="9" x2="17" y2="15"/>
+              <line x1="17" y1="9" x2="23" y2="15"/>
+            </svg>
+          </button>
+          <button className="func-btn" onClick={() => sendCommand('info')} disabled={loading !== null}>Info</button>
+        </div>
 
-        <button
-          className={`btn btn-tv ${tvLoading ? 'loading' : ''}`}
-          onClick={handleTvPower}
-          disabled={tvLoading}
-        >
-          {tvLoading ? (
-            <span className="btn-content">
-              <span className="spinner"></span>
-              Invio...
-            </span>
-          ) : (
-            <span className="btn-content">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
-                <line x1="12" y1="2" x2="12" y2="12"/>
-              </svg>
-              Accendi / Spegni TV
-            </span>
-          )}
-        </button>
+        {/* D-Pad */}
+        <div className="dpad">
+          <div className="dpad-row">
+            <div></div>
+            <DpadButton cmd="up" label="▲" />
+            <div></div>
+          </div>
+          <div className="dpad-row">
+            <DpadButton cmd="left" label="◀" />
+            <DpadButton cmd="ok" label="OK" large />
+            <DpadButton cmd="right" label="▶" />
+          </div>
+          <div className="dpad-row">
+            <div></div>
+            <DpadButton cmd="down" label="▼" />
+            <div></div>
+          </div>
+        </div>
 
+        {/* Nav row */}
+        <div className="nav-row">
+          <button className="nav-btn" onClick={() => sendCommand('back')} disabled={loading !== null}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            <span>Indietro</span>
+          </button>
+          <button className="nav-btn" onClick={() => sendCommand('home')} disabled={loading !== null}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+            </svg>
+            <span>Home</span>
+          </button>
+        </div>
+
+        {/* Volume & Channel */}
+        <div className="media-row">
+          <div className="vol-group">
+            <button className="media-btn" onClick={() => sendCommand('volUp')} disabled={loading !== null}>+</button>
+            <span className="media-label">Vol</span>
+            <button className="media-btn" onClick={() => sendCommand('volDown')} disabled={loading !== null}>−</button>
+          </div>
+          <div className="vol-group">
+            <button className="media-btn" onClick={() => sendCommand('chUp')} disabled={loading !== null}>▲</button>
+            <span className="media-label">Canale</span>
+            <button className="media-btn" onClick={() => sendCommand('chDown')} disabled={loading !== null}>▼</button>
+          </div>
+        </div>
+
+        {/* Playback */}
+        <div className="play-row">
+          <button className="play-btn" onClick={() => sendCommand('play')} disabled={loading !== null}>▶</button>
+          <button className="play-btn" onClick={() => sendCommand('pause')} disabled={loading !== null}>⏸</button>
+        </div>
+
+        {/* PIN section */}
         {showPinInput && (
           <div className="pin-section">
-            <p className="pin-text">Il PIN e' mostrato sul TV</p>
+            <p className="pin-text">
+              {authExpired ? 'Autenticazione scaduta.' : ''} Inserisci il PIN mostrato sul TV
+            </p>
             <div className="pin-row">
+              {authExpired && (
+                <button className="pin-btn-secondary" onClick={handleRequestPin} disabled={registering}>
+                  Mostra PIN
+                </button>
+              )}
               <input
                 type="text"
                 inputMode="numeric"
                 maxLength={6}
-                placeholder="Inserisci PIN"
+                placeholder="PIN"
                 value={pin}
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
                 className="pin-input"
@@ -171,13 +203,6 @@ function App() {
                 OK
               </button>
             </div>
-          </div>
-        )}
-
-        {notification && (
-          <div className="notification">
-            <span className="notification-icon">&#128276;</span>
-            {notification}
           </div>
         )}
       </div>

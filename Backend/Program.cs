@@ -25,9 +25,47 @@ app.UseCors();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-app.MapGet("/api/hello", () => Results.Ok(new { message = "Hello World!" }));
+// Send IRCC command to TV
+async Task<IResult> SendIrcc(string code)
+{
+    using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+    var body = $"""
+        <?xml version="1.0"?>
+        <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+        <s:Body>
+        <u:X_SendIRCC xmlns:u="urn:schemas-sony-com:service:IRCC:1">
+        <IRCCCode>{code}</IRCCCode>
+        </u:X_SendIRCC>
+        </s:Body>
+        </s:Envelope>
+        """;
 
-// TV - Power toggle
+    var request = new HttpRequestMessage(HttpMethod.Post, $"http://{tvIp}/sony/IRCC");
+    request.Content = new StringContent(body, Encoding.UTF8, "text/xml");
+    request.Headers.Add("Cookie", $"auth={authState.Cookie}");
+
+    try
+    {
+        var response = await client.SendAsync(request);
+        if ((int)response.StatusCode == 401 || (int)response.StatusCode == 403)
+        {
+            authState.Cookie = "";
+            return Results.Json(new { success = false, error = "Auth scaduta" }, statusCode: 401);
+        }
+        return response.IsSuccessStatusCode
+            ? Results.Ok(new { success = true })
+            : Results.Json(new { success = false, error = $"TV error: {response.StatusCode}" }, statusCode: 502);
+    }
+    catch
+    {
+        return Results.Json(new { success = false, error = "TV non raggiungibile" }, statusCode: 503);
+    }
+}
+
+// Generic command endpoint
+app.MapPost("/api/tv/command", async (CommandRequest cmd) => await SendIrcc(cmd.Code));
+
+// Power toggle (uses JSON-RPC)
 app.MapPost("/api/tv/power", async () =>
 {
     using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
@@ -50,17 +88,16 @@ app.MapPost("/api/tv/power", async () =>
         }
 
         bool isOn = statusJson.Contains("\"active\"");
-        bool targetStatus = !isOn;
 
         var powerRequest = new HttpRequestMessage(HttpMethod.Post, $"http://{tvIp}/sony/system");
         powerRequest.Content = new StringContent(
-            $"{{\"method\":\"setPowerStatus\",\"params\":[{{\"status\":{(targetStatus ? "true" : "false")}}}],\"id\":1,\"version\":\"1.0\"}}",
+            $"{{\"method\":\"setPowerStatus\",\"params\":[{{\"status\":{(!isOn ? "true" : "false")}}}],\"id\":1,\"version\":\"1.0\"}}",
             Encoding.UTF8, "application/json");
         powerRequest.Headers.Add("Cookie", $"auth={authState.Cookie}");
 
         var powerResponse = await client.SendAsync(powerRequest);
         return powerResponse.IsSuccessStatusCode
-            ? Results.Ok(new { success = true, turnedOn = targetStatus })
+            ? Results.Ok(new { success = true })
             : Results.Json(new { success = false, error = $"TV error: {powerResponse.StatusCode}" }, statusCode: 502);
     }
     catch
@@ -69,7 +106,7 @@ app.MapPost("/api/tv/power", async () =>
     }
 });
 
-// TV - Trigger PIN display
+// Trigger PIN display
 app.MapPost("/api/tv/pin", async () =>
 {
     using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
@@ -80,7 +117,7 @@ app.MapPost("/api/tv/pin", async () =>
     try
     {
         await client.SendAsync(request);
-        return Results.Ok(new { success = true, message = "PIN mostrato sul TV" });
+        return Results.Ok(new { success = true });
     }
     catch
     {
@@ -88,7 +125,7 @@ app.MapPost("/api/tv/pin", async () =>
     }
 });
 
-// TV - Register with PIN
+// Register with PIN
 app.MapPost("/api/tv/register", async (string pin) =>
 {
     using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
@@ -131,3 +168,5 @@ class TvAuthState
     public string Cookie { get; set; } = "";
     public DateTime LastRenewed { get; set; } = DateTime.MinValue;
 }
+
+record CommandRequest(string Code);
