@@ -73,7 +73,7 @@ function App() {
               Attendi 5 secondi...
             </span>
           ) : (
-            'Premi qui!'
+            'Salutami!'
           )}
         </button>
 
