@@ -3,15 +3,14 @@ import './App.css'
 
 function App() {
   const [loading, setLoading] = useState(false)
+  const [tvLoading, setTvLoading] = useState(false)
   const [notification, setNotification] = useState(null)
   const [permission, setPermission] = useState('default')
 
   useEffect(() => {
-    // Register service worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(console.error)
     }
-    // Check current notification permission
     if ('Notification' in window) {
       setPermission(Notification.permission)
     }
@@ -20,7 +19,6 @@ function App() {
   const handleButtonClick = async () => {
     if (loading) return
 
-    // Request notification permission if not granted
     if ('Notification' in window && Notification.permission !== 'granted') {
       const result = await Notification.requestPermission()
       setPermission(result)
@@ -33,7 +31,6 @@ function App() {
     setLoading(true)
     setNotification(null)
 
-    // Schedule notification via service worker (works in background)
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({
         type: 'SCHEDULE_NOTIFICATION',
@@ -43,11 +40,30 @@ function App() {
       })
     }
 
-    // Also show in-app after 5 seconds
     setTimeout(() => {
       setNotification('Hello World!')
       setLoading(false)
     }, 5000)
+  }
+
+  const handleTvPower = async () => {
+    if (tvLoading) return
+    setTvLoading(true)
+    setNotification(null)
+
+    try {
+      const res = await fetch('/api/tv/power', { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        setNotification('Comando inviato al TV!')
+      } else {
+        setNotification('Errore: ' + data.error)
+      }
+    } catch {
+      setNotification('Impossibile raggiungere il server')
+    } finally {
+      setTvLoading(false)
+    }
   }
 
   return (
@@ -74,6 +90,29 @@ function App() {
             </span>
           ) : (
             'Salutami!'
+          )}
+        </button>
+
+        <div className="divider"></div>
+
+        <button
+          className={`btn btn-tv ${tvLoading ? 'loading' : ''}`}
+          onClick={handleTvPower}
+          disabled={tvLoading}
+        >
+          {tvLoading ? (
+            <span className="btn-content">
+              <span className="spinner"></span>
+              Invio...
+            </span>
+          ) : (
+            <span className="btn-content">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+                <line x1="12" y1="2" x2="12" y2="12"/>
+              </svg>
+              Accendi / Spegni TV
+            </span>
           )}
         </button>
 
