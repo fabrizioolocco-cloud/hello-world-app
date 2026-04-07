@@ -1,5 +1,9 @@
 var builder = WebApplication.CreateBuilder(args);
 
+// Render provides PORT env variable - use it
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebBuilder().UseUrls($"http://0.0.0.0:{port}");
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
