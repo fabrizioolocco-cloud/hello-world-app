@@ -1,0 +1,7 @@
+bin/
+obj/
+node_modules/
+frontend/node_modules/
+Backend/bin/
+Backend/obj/
+*.user
